@@ -1,0 +1,52 @@
+[project]
+name = "ecommerce-realtime-data-platform"
+version = "0.1.0"
+description = "Production-style real-time data platform for e-commerce analytics"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.9",
+]
+
+# ============================================================
+# Ruff — linter + formatter
+# ============================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["dbt", "data"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print: use logging, not print()
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["T20"]   # CLI helper scripts may print to stdout
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ============================================================
+# Pytest
+# ============================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "unit: fast, pure-Python tests with no external dependencies",
+    "spark: tests that start a local SparkSession (slower, needs Java)",
+    "integration: tests that need running services (Kafka, Postgres)",
+]
