@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Production-style real-time data platform for e-commerce analytics"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "platform-common",
+]
 
 [dependency-groups]
 dev = [
@@ -50,3 +52,11 @@ markers = [
     "spark: tests that start a local SparkSession (slower, needs Java)",
     "integration: tests that need running services (Kafka, Postgres)",
 ]
+
+[tool.uv.workspace]
+members = [
+    "libs/platform_common",
+]
+
+[tool.uv.sources]
+platform-common = { workspace = true }
