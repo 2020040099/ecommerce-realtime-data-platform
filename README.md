@@ -69,7 +69,27 @@ PostgreSQL warehouse (star schema) ─► Grafana dashboards
 
 ## Getting Started
 
-_Coming in M1._
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose v2
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- `make`
+- On Windows, run everything inside WSL2
+
+### Quick start
+
+```bash
+git clone git@github.com:2020040099/ecommerce-realtime-data-platform.git
+cd ecommerce-realtime-data-platform
+
+cp .env.example .env      # then edit credentials if you like
+make install              # install Python dependencies from uv.lock
+make up                   # start PostgreSQL
+make ps                   # wait until STATUS shows (healthy)
+make check                # lint + tests
+```
+
+Run `make` with no arguments to see every available command.
 
 ## Project Structure
 
