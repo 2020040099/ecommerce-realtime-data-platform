@@ -56,7 +56,7 @@ PostgreSQL warehouse (star schema) ─► Grafana dashboards
 
 ## Roadmap
 
-- [ ] **M1** — Project foundation: structure, tooling, logging, Docker Compose, CI
+- [x] **M1** — Project foundation: structure, tooling, logging, Docker Compose, CI
 - [ ] **M2** — Event generator with realistic funnels and fault injection
 - [ ] **M3** — Kafka: topics, partitioning strategy, delivery semantics
 - [ ] **M4** — Streaming ingestion: Bronze / Silver / Quarantine, deduplication, checkpointing

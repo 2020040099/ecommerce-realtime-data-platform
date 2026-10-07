@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ecommerce-realtime-data-platform",
+    "generator",
     "platform-common",
 ]
 
@@ -121,6 +122,7 @@ name = "ecommerce-realtime-data-platform"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "generator" },
     { name = "platform-common" },
 ]
 
@@ -132,7 +134,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "platform-common", editable = "libs/platform_common" }]
+requires-dist = [
+    { name = "generator", editable = "generator" },
+    { name = "platform-common", editable = "libs/platform_common" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -140,6 +145,11 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.16.9" },
 ]
+
+[[package]]
+name = "generator"
+version = "0.1.0"
+source = { editable = "generator" }
 
 [[package]]
 name = "iniconfig"
