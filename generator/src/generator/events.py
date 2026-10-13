@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+CURRENCY = "USD"
 
 
 class EventType(StrEnum):
@@ -52,6 +54,28 @@ def topic_for(event_type: EventType) -> Topic:
 
 
 @dataclass(frozen=True, slots=True)
+class OrderItem:
+    """One line of an order: a product, its unit price at purchase time, and a quantity."""
+
+    product_id: str
+    category: str
+    unit_price: Decimal
+    quantity: int
+
+    @property
+    def line_total(self) -> Decimal:
+        return self.unit_price * self.quantity
+
+    def to_dict(self) -> dict[str, Any]:
+        return {f.name: _to_json_value(getattr(self, f.name)) for f in fields(self)}
+
+
+def order_total(items: Sequence[OrderItem]) -> Decimal:
+    """Sum of unit_price x quantity across all lines."""
+    return sum((item.line_total for item in items), Decimal("0"))
+
+
+@dataclass(frozen=True, slots=True)
 class Event:
     """One e-commerce event, exactly as it will be published downstream.
 
@@ -75,6 +99,15 @@ class Event:
     quantity: int | None = None
     search_query: str | None = None
 
+    # --- order & payment fields (added in schema 1.1) ---
+    order_id: str | None = None
+    items: tuple[OrderItem, ...] | None = None
+    order_amount: Decimal | None = None
+    currency: str | None = None
+    payment_id: str | None = None
+    payment_method: str | None = None
+    failure_reason: str | None = None
+
     # --- filled in automatically ---
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     schema_version: str = SCHEMA_VERSION
@@ -82,6 +115,10 @@ class Event:
     def __post_init__(self) -> None:
         if self.event_timestamp.tzinfo is None:
             raise ValueError("event_timestamp must be timezone-aware (use UTC)")
+        if self.items is not None and self.order_amount is not None:
+            expected = order_total(self.items)
+            if self.order_amount != expected:
+                raise ValueError(f"order_amount {self.order_amount} != sum of items {expected}")
 
     @property
     def topic(self) -> Topic:
@@ -110,4 +147,8 @@ def _to_json_value(value: Any) -> Any:
         return format_timestamp(value)
     if isinstance(value, Decimal):
         return str(value)
+    if isinstance(value, OrderItem):
+        return value.to_dict()
+    if isinstance(value, tuple):
+        return [_to_json_value(v) for v in value]
     return value

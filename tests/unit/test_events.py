@@ -8,7 +8,15 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from generator.events import TOPIC_BY_EVENT_TYPE, Event, EventType, Topic, topic_for
+from generator.events import (
+    TOPIC_BY_EVENT_TYPE,
+    Event,
+    EventType,
+    OrderItem,
+    Topic,
+    order_total,
+    topic_for,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -97,3 +105,48 @@ def test_event_is_immutable() -> None:
     event = make_event()
     with pytest.raises(FrozenInstanceError):
         event.price = Decimal("1.00")
+
+
+# ------------------------------------------------------------------
+# Orders (schema 1.1)
+# ------------------------------------------------------------------
+def make_items() -> tuple[OrderItem, ...]:
+    return (
+        OrderItem("p_00001", "books", Decimal("19.99"), 2),
+        OrderItem("p_00002", "toys", Decimal("5.50"), 1),
+    )
+
+
+def test_order_total_is_sum_of_line_totals() -> None:
+    assert order_total(make_items()) == Decimal("45.48")  # 19.99*2 + 5.50*1
+
+
+def test_order_amount_must_match_items() -> None:
+    with pytest.raises(ValueError, match="order_amount"):
+        make_event(
+            event_type=EventType.PURCHASE,
+            order_id="o_1",
+            items=make_items(),
+            order_amount=Decimal("45.00"),
+        )
+
+
+def test_order_items_serialize_as_a_list_of_dicts() -> None:
+    data = make_event(
+        event_type=EventType.PURCHASE,
+        order_id="o_1",
+        items=make_items(),
+        order_amount=Decimal("45.48"),
+    ).to_dict()
+
+    assert data["order_amount"] == "45.48"
+    assert data["items"] == [
+        {"product_id": "p_00001", "category": "books", "unit_price": "19.99", "quantity": 2},
+        {"product_id": "p_00002", "category": "toys", "unit_price": "5.50", "quantity": 1},
+    ]
+
+
+def test_events_without_order_fields_are_unchanged() -> None:
+    data = make_event().to_dict()
+    for key in ("order_id", "items", "order_amount", "currency", "payment_id"):
+        assert key not in data
