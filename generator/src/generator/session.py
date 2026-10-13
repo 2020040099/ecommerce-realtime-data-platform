@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from generator.catalog import CATEGORY_PRICE_RANGES, Catalog, Product
-from generator.events import Event, EventType
+from generator.events import CURRENCY, Event, EventType, OrderItem, order_total
 
 START = "start"
 END = "end"
@@ -35,7 +35,10 @@ TRANSITIONS: dict[str, list[tuple[str, float]]] = {
         (END, 0.15),
     ],
     EventType.REMOVE_FROM_CART: [(EventType.USER_VIEW, 0.6), (END, 0.4)],
-    EventType.CHECKOUT: [(END, 1.0)],  # purchase & payment are added in a later step
+    EventType.CHECKOUT: [(EventType.PURCHASE, 0.85), (END, 0.15)],
+    EventType.PURCHASE: [(EventType.PAYMENT_SUCCESS, 0.92), (EventType.PAYMENT_FAILED, 0.08)],
+    EventType.PAYMENT_SUCCESS: [(END, 1.0)],
+    EventType.PAYMENT_FAILED: [(END, 1.0)],
 }
 
 MAX_EVENTS_PER_SESSION = 50
@@ -45,6 +48,8 @@ DEVICE_TYPES = ["web", "ios", "android"]
 COUNTRIES = ["AU", "US", "GB", "SG", "CN", "DE", "JP"]
 SOURCES = ["organic", "paid_ads", "email", "social", "direct"]
 SEARCH_TERMS = list(CATEGORY_PRICE_RANGES)
+PAYMENT_METHODS = ["card", "paypal", "apple_pay", "afterpay"]
+PAYMENT_FAILURE_REASONS = ["insufficient_funds", "card_declined", "timeout", "fraud_suspected"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +86,8 @@ def simulate_session(
     clock = started_at
     current: Product | None = None  # the product the user is looking at
     cart: list[tuple[Product, int]] = []  # (product, quantity)
+    order_id: str | None = None
+    items: tuple[OrderItem, ...] = ()
 
     while len(events) < MAX_EVENTS_PER_SESSION:
         state = _next_state(state, rng)
@@ -107,8 +114,55 @@ def simulate_session(
         elif event_type is EventType.CHECKOUT:
             total_items = sum(quantity for _, quantity in cart)
             events.append(_event(ctx, event_type, clock, quantity=total_items))
+        elif event_type is EventType.PURCHASE:
+            order_id = f"o_{rng.getrandbits(48):012x}"
+            items = cart_to_items(cart)
+            events.append(
+                _event(
+                    ctx,
+                    event_type,
+                    clock,
+                    order_id=order_id,
+                    items=items,
+                    order_amount=order_total(items),
+                    currency=CURRENCY,
+                )
+            )
+        elif event_type in (EventType.PAYMENT_SUCCESS, EventType.PAYMENT_FAILED):
+            failed = event_type is EventType.PAYMENT_FAILED
+            events.append(
+                _event(
+                    ctx,
+                    event_type,
+                    clock,
+                    order_id=order_id,
+                    order_amount=order_total(items),
+                    currency=CURRENCY,
+                    payment_id=f"pay_{rng.getrandbits(48):012x}",
+                    payment_method=rng.choice(PAYMENT_METHODS),
+                    failure_reason=rng.choice(PAYMENT_FAILURE_REASONS) if failed else None,
+                )
+            )
 
     return events
+
+
+def cart_to_items(cart: list[tuple[Product, int]]) -> tuple[OrderItem, ...]:
+    """Turn cart lines into order lines, merging repeated products into one line."""
+    products: dict[str, Product] = {}
+    quantities: dict[str, int] = {}
+    for product, quantity in cart:
+        products.setdefault(product.product_id, product)
+        quantities[product.product_id] = quantities.get(product.product_id, 0) + quantity
+    return tuple(
+        OrderItem(
+            product_id=product_id,
+            category=product.category,
+            unit_price=product.price,
+            quantity=quantities[product_id],
+        )
+        for product_id, product in products.items()
+    )
 
 
 def _next_state(state: str, rng: random.Random) -> str:
