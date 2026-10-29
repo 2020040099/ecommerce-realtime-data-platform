@@ -20,7 +20,7 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TextIO
 
 # Every attribute a plain LogRecord carries. Anything NOT in this set was
 # supplied by the caller via `extra=...` and should be emitted as a JSON field.
@@ -76,6 +76,7 @@ def configure_logging(
     component: str,
     level: str | None = None,
     fmt: str | None = None,
+    stream: TextIO | None = None,
 ) -> None:
     """Configure the root logger. Call exactly once per process, at startup.
 
@@ -83,14 +84,16 @@ def configure_logging(
         component: Logical service name, e.g. "generator" or "streaming".
         level: Log level name. Falls back to env var LOG_LEVEL, then "INFO".
         fmt: "json" (machines) or "text" (humans; omits `extra` fields). Falls
-        back to env var LOG_FORMAT, then "json".
+            back to env var LOG_FORMAT, then "json".
+        stream: Where log lines are written. Defaults to stderr, so that stdout
+            stays free for data (e.g. a generator piping events to a file).
     """
     resolved_level = (level or os.getenv("LOG_LEVEL", "INFO")).upper()
     resolved_fmt = (fmt or os.getenv("LOG_FORMAT", "json")).lower()
     if resolved_fmt not in VALID_FORMATS:
         raise ValueError(f"fmt must be one of {VALID_FORMATS}, got {resolved_fmt!r}")
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(stream or sys.stderr)
     handler.addFilter(ComponentFilter(component))
     if resolved_fmt == "json":
         formatter: logging.Formatter = JsonFormatter()

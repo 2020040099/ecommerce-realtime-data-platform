@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import sys
@@ -39,7 +40,7 @@ def format_json(record: logging.LogRecord) -> dict[str, Any]:
 
 
 def read_json_lines(capsys: pytest.CaptureFixture[str]) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    return [json.loads(line) for line in capsys.readouterr().err.splitlines()]
 
 
 @pytest.fixture(autouse=True)
@@ -140,7 +141,7 @@ def test_explicit_argument_overrides_env_var(
     configure_logging(component="c", level="WARNING")
     logging.getLogger("t").info("suppressed")
 
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().err == ""
 
 
 def test_is_idempotent(capsys: pytest.CaptureFixture[str]) -> None:
@@ -171,3 +172,20 @@ def test_text_format_is_utc_even_on_non_utc_machine(monkeypatch: pytest.MonkeyPa
 def test_invalid_format_raises() -> None:
     with pytest.raises(ValueError, match="fmt must be one of"):
         configure_logging(component="c", fmt="xml")
+
+
+def test_logs_go_to_stderr_and_keep_stdout_clean(capsys: pytest.CaptureFixture[str]) -> None:
+    configure_logging(component="c")
+    logging.getLogger("t").info("hello")
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert json.loads(captured.err)["event"] == "hello"
+
+
+def test_logs_can_be_sent_to_a_custom_stream() -> None:
+    buffer = io.StringIO()
+    configure_logging(component="c", stream=buffer)
+    logging.getLogger("t").info("to_buffer")
+
+    assert json.loads(buffer.getvalue())["event"] == "to_buffer"
