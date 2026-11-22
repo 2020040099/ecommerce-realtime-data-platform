@@ -39,6 +39,9 @@ logs: ## Follow logs from all services (Ctrl+C to exit)
 psql: ## Open an interactive psql shell on the analytics database
 	docker compose exec postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
+topics: ## Create Kafka topics (idempotent, safe to re-run)
+	uv run kafka-create-topics
+
 db-reset: ## DANGER: remove containers AND all local database data
 	@read -p "This deletes ALL local database data. Type 'yes' to continue: " ans && [ "$$ans" = "yes" ]
 	docker compose down -v
