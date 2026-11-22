@@ -7,7 +7,12 @@ authors = [
     { name = "Tianyang Huang", email = "lt0183298@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "confluent-kafka>=2.16.2",
+]
+
+[project.scripts]
+kafka-create-topics = "platform_common.kafka_topics:main"
 
 [build-system]
 requires = ["uv_build>=0.12.20,<0.13.0"]
