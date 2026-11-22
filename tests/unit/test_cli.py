@@ -48,7 +48,7 @@ def test_logs_config_on_start_and_stats_on_stop(capsys: pytest.CaptureFixture[st
 
 @pytest.mark.parametrize(
     "argv",
-    [["--rate", "0"], ["--rate", "abc"], ["--output", "kafka"], ["--max-events", "0"]],
+    [["--rate", "0"], ["--rate", "abc"], ["--output", "s3"], ["--max-events", "0"]],
 )
 def test_rejects_invalid_arguments_with_exit_code_2(argv: list[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
