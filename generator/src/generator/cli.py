@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import random
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from platform_common import configure_logging
 
 from generator.catalog import Catalog
 from generator.faults import DEFAULT_FAULTS, FaultConfig
+from generator.kafka_sink import KafkaSink
 from generator.runner import run
 from generator.sinks import JsonlFileSink, Sink, StdoutSink
 
@@ -40,10 +42,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--rate", type=positive_float, default=10.0, help="events per second (default: 10)"
     )
     parser.add_argument(
-        "--output", choices=["stdout", "file"], default="stdout", help="where to send events"
+        "--output",
+        choices=["stdout", "file", "kafka"],
+        default="stdout",
+        help="where to send events",
     )
     parser.add_argument(
         "--path", type=Path, default=DEFAULT_PATH, help=f"file for --output file ({DEFAULT_PATH})"
+    )
+    parser.add_argument(
+        "--bootstrap-servers",
+        default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+        help="Kafka address for --output kafka (env: KAFKA_BOOTSTRAP_SERVERS)",
     )
     parser.add_argument(
         "--max-events",
@@ -56,9 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def make_sink(output: str, path: Path) -> Sink:
-    if output == "file":
-        return JsonlFileSink(path)
+def make_sink(args: argparse.Namespace) -> Sink:
+    if args.output == "file":
+        return JsonlFileSink(args.path)
+    if args.output == "kafka":
+        return KafkaSink(args.bootstrap_servers)
     return StdoutSink()
 
 
@@ -76,13 +88,14 @@ def main(argv: list[str] | None = None) -> int:
             "rate": args.rate,
             "output": args.output,
             "path": str(args.path) if args.output == "file" else None,
+            "bootstrap_servers": args.bootstrap_servers if args.output == "kafka" else None,
             "max_events": args.max_events,
             "seed": seed,
             "faults_enabled": not args.no_faults,
         },
     )
 
-    with make_sink(args.output, args.path) as sink:
+    with make_sink(args) as sink:
         stats = run(
             sink,
             random.Random(seed),

@@ -195,11 +195,15 @@ name = "generator"
 version = "0.1.0"
 source = { editable = "generator" }
 dependencies = [
+    { name = "confluent-kafka" },
     { name = "platform-common" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "platform-common", editable = "libs/platform_common" }]
+requires-dist = [
+    { name = "confluent-kafka", specifier = ">=2.16.2" },
+    { name = "platform-common", editable = "libs/platform_common" },
+]
 
 [[package]]
 name = "iniconfig"
